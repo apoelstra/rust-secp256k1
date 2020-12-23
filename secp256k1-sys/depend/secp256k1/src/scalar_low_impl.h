@@ -48,14 +48,33 @@ static void rustsecp256k1_v0_3_1_scalar_cadd_bit(rustsecp256k1_v0_3_1_scalar *r,
 }
 
 static void rustsecp256k1_v0_3_1_scalar_set_b32(rustsecp256k1_v0_3_1_scalar *r, const unsigned char *b32, int *overflow) {
+    /* rust-secp: we use this module for our fuzz mock implementation. Since actual code
+     * will likely panic if it generates an out-of-range secret key (e.g. from a hash)
+     * we should make this cryptographically inaccessible */
+    const unsigned char secp_order[] = {
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+        0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b,
+        0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x41
+    };
+    int over = 1;
+
     int i;
-    int over = 0;
     *r = 0;
     for (i = 0; i < 32; i++) {
         *r = (*r * 0x100) + b32[i];
         if (*r >= EXHAUSTIVE_TEST_ORDER) {
-            over = 1;
             *r %= EXHAUSTIVE_TEST_ORDER;
+        }
+    }
+
+    for (i = 0; i < 32; i++) {
+        if (b32[i] < secp_order[i]) {
+            over = 0;
+            break;
+        }
+        if (b32[i] > secp_order[i]) {
+            break;
         }
     }
     if (overflow) *overflow = over;

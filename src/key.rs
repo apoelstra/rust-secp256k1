@@ -450,6 +450,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(rust_secp_fuzz))]  // fixed sig vectors can't work with fuzz-sigs
     fn pubkey_from_slice() {
         assert_eq!(PublicKey::from_slice(&[]), Err(InvalidPublicKey));
         assert_eq!(PublicKey::from_slice(&[1, 2, 3]), Err(InvalidPublicKey));
@@ -613,6 +614,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(rust_secp_fuzz))]  // fixed sig vectors can't work with fuzz-sigs
     fn test_display_output() {
         static SK_BYTES: [u8; 32] = [
             0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
@@ -666,6 +668,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(rust_secp_fuzz))]  // fixed sig vectors can't work with fuzz-sigs
     fn test_pubkey_serialize() {
         struct DumbRng(u32);
         impl RngCore for DumbRng {
@@ -745,12 +748,14 @@ mod test {
         assert_ne!(original_pk, pk);
         sk.negate_assign();
         pk.negate_assign(&s);
+        #[cfg(not(rust_secp_fuzz))]  // double-negation doesn't work for scalars in fuzz-mode
         assert_eq!(original_sk, sk);
         assert_eq!(original_pk, pk);
         assert_eq!(PublicKey::from_secret_key(&s, &sk), pk);
     }
 
     #[test]
+    #[cfg(not(rust_secp_fuzz))]  // in fuzz-sig mode we're guaranteed to collide keys
     fn pubkey_hash() {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
@@ -775,6 +780,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(rust_secp_fuzz))]  // fixed sig vectors can't work with fuzz-sigs
     fn pubkey_combine() {
         let compressed1 = PublicKey::from_slice(
             &hex!("0241cc121c419921942add6db6482fb36243faf83317c866d2a28d8c6d7089f7ba"),
@@ -795,6 +801,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(rust_secp_fuzz))]  // fixed sig vectors can't work with fuzz-sigs
     fn pubkey_equal() {
         let pk1 = PublicKey::from_slice(
             &hex!("0241cc121c419921942add6db6482fb36243faf83317c866d2a28d8c6d7089f7ba"),

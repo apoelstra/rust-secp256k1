@@ -42,6 +42,10 @@ fn main() {
                .define("USE_FIELD_INV_BUILTIN", Some("1"))
                .define("USE_SCALAR_INV_BUILTIN", Some("1"));
     
+    if cfg!(rust_secp_fuzz) {
+        base_config.define("EXHAUSTIVE_TEST_ORDER", Some("13"));
+    }
+
     if cfg!(feature = "lowmemory") {
         base_config.define("ECMULT_WINDOW_SIZE", Some("4")); // A low-enough value to consume neglible memory
     } else {

@@ -478,10 +478,7 @@ extern "C" {
         internal_pubkey: *const XOnlyPublicKey,
         tweak32: *const c_uchar,
     ) -> c_int;
-}
 
-#[cfg(not(rust_secp_fuzz))]
-extern "C" {
     // ECDSA
     #[cfg_attr(not(rust_secp_no_symbol_renaming), link_name = "rustsecp256k1_v0_3_1_ecdsa_verify")]
     pub fn secp256k1_ecdsa_verify(cx: *const Context,
@@ -666,98 +663,6 @@ impl<T> CPtr for [T] {
         }
     }
 }
-
-#[cfg(rust_secp_fuzz)]
-mod fuzz_dummy {
-    use super::*;
-
-    // ECDSA
-    /// Verifies that sig is msg32||pk[..32]
-    pub unsafe fn secp256k1_ecdsa_verify(cx: *const Context,
-                                         sig: *const Signature,
-                                         msg32: *const c_uchar,
-                                         pk: *const PublicKey)
-                                         -> c_int {
-        // Check context is built for verification
-        let mut new_pk = (*pk).clone();
-        let _ = secp256k1_ec_pubkey_tweak_add(cx, &mut new_pk, msg32);
-        // Actually verify
-        let sig_sl = slice::from_raw_parts(sig as *const u8, 64);
-        let msg_sl = slice::from_raw_parts(msg32 as *const u8, 32);
-        if &sig_sl[..32] == msg_sl && sig_sl[32..] == (*pk).0[0..32] {
-            1
-        } else {
-            0
-        }
-    }
-
-    /// Sets sig to msg32||pk[..32]
-    pub unsafe fn secp256k1_ecdsa_sign(cx: *const Context,
-                                       sig: *mut Signature,
-                                       msg32: *const c_uchar,
-                                       sk: *const c_uchar,
-                                       _noncefn: NonceFn,
-                                       _noncedata: *const c_void)
-                                       -> c_int {
-        // Check context is built for signing (and compute pk)
-        let mut new_pk = PublicKey::new();
-        if secp256k1_ec_pubkey_create(cx, &mut new_pk, sk) != 1 {
-            return 0;
-        }
-        // Sign
-        let sig_sl = slice::from_raw_parts_mut(sig as *mut u8, 64);
-        let msg_sl = slice::from_raw_parts(msg32 as *const u8, 32);
-        sig_sl[..32].copy_from_slice(msg_sl);
-        sig_sl[32..].copy_from_slice(&new_pk.0[..32]);
-        1
-    }
-
-    /// Verifies that sig is msg32||pk[32..]
-    pub unsafe fn secp256k1_schnorrsig_verify(
-        cx: *const Context,
-        sig64: *const c_uchar,
-        msg32: *const c_uchar,
-        pubkey: *const XOnlyPublicKey,
-    ) -> c_int {
-        // Check context is built for verification
-        let mut new_pk = PublicKey::new();
-        let _ = secp256k1_xonly_pubkey_tweak_add(cx, &mut new_pk, pubkey, msg32);
-        // Actually verify
-        let sig_sl = slice::from_raw_parts(sig64 as *const u8, 64);
-        let msg_sl = slice::from_raw_parts(msg32 as *const u8, 32);
-        if &sig_sl[..32] == msg_sl && sig_sl[32..] == (*pubkey).0[..32] {
-            1
-        } else {
-            0
-        }
-    }
-
-    /// Sets sig to msg32||pk[..32]
-    pub unsafe fn secp256k1_schnorrsig_sign(
-        cx: *const Context,
-        sig64: *mut c_uchar,
-        msg32: *const c_uchar,
-        keypair: *const KeyPair,
-        noncefp: SchnorrNonceFn,
-        noncedata: *const c_void
-    ) -> c_int {
-        // Check context is built for signing
-        let mut new_kp = KeyPair::new();
-        if secp256k1_keypair_create(cx, &mut new_kp, (*keypair).0.as_ptr()) != 1 {
-            return 0;
-        }
-        assert_eq!(new_kp, *keypair);
-        // Sign
-        let sig_sl = slice::from_raw_parts_mut(sig64 as *mut u8, 64);
-        let msg_sl = slice::from_raw_parts(msg32 as *const u8, 32);
-        sig_sl[..32].copy_from_slice(msg_sl);
-        sig_sl[32..].copy_from_slice(&new_kp.0[32..64]);
-        1
-    }
-}
-
-#[cfg(rust_secp_fuzz)]
-pub use self::fuzz_dummy::*;
 
 #[cfg(test)]
 mod tests {
